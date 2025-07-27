@@ -8,14 +8,13 @@
         <span class="message-name">{{ type === 'USER' ? '你' : '助手' }}</span>
         <span class="message-time">{{ formatTime(timestamp) }}</span>
       </div>
-      <div class="message-text" v-html="formatMessage(content)" />
+      <MarkdownRender :content="content" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { marked } from 'marked'
-
+import MarkdownRender from '@/components/chat/MarkdownRender.vue'
 interface Props {
   content: string
   type: 'USER' | 'ASSISTANT'
@@ -34,9 +33,6 @@ const formatTime = (timestamp: Date) => {
   })
 }
 
-const formatMessage = (message: string) => {
-  return marked(message)
-}
 </script>
 
 <style scoped>
