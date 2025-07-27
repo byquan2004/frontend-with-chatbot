@@ -13,10 +13,10 @@
           <el-form-item label="选择模型">
             <el-select v-model="config.model" placeholder="请选择模型">
               <el-option
-                v-for="model in availableModels"
-                :key="model.value"
-                :label="model.label"
-                :value="model.value"
+                v-for="(model, index) in availableModels"
+                :key="index"
+                :label="model"
+                :value="model"
               />
             </el-select>
           </el-form-item>
@@ -43,10 +43,10 @@
 
           <el-form-item label="最大上下文长度">
             <el-slider
-              v-model="config.maxContextTokens"
-              :min="512"
-              :max="8192"
-              :step="512"
+              v-model="config.windowContextSize"
+              :min="1"
+              :max="100"
+              :step="1"
               show-input
             />
           </el-form-item>
@@ -54,9 +54,9 @@
           <el-form-item label="最大输出Token">
             <el-slider
               v-model="config.maxTokens"
-              :min="256"
-              :max="4096"
-              :step="256"
+              :min="512"
+              :max="8192"
+              :step="512"
               show-input
             />
           </el-form-item>
@@ -88,15 +88,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Setting } from '@element-plus/icons-vue'
+import type { ModelConfig } from '@/types/chat'
+import { useChatStore } from '@/stores/chat'
+import { storeToRefs } from 'pinia'
 
-interface ModelConfig {
-  model: string
-  temperature: number
-  topP: number
-  maxContextTokens: number
-  maxTokens: number
-  systemPrompt: string
-}
+const chatStore = useChatStore()
 
 const emit = defineEmits(['update'])
 
@@ -106,41 +102,27 @@ const isMobile = ref(window.innerWidth <= 768)
 const handleResize = () => {
   isMobile.value = window.innerWidth <= 768
 }
+const config = ref<ModelConfig>(chatStore.modelConfig)
+const availableModels = storeToRefs(chatStore).models
+const cancelConfig = () => {
+  config.value = chatStore.modelConfig
+  dialogVisible.value = false
+}
+
+const confirmConfig = () => {
+  chatStore.updateModelConfig(config.value)
+  emit('update', config.value)
+  dialogVisible.value = false
+}
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  chatStore.loadModels()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 })
-
-const tempConfig = ref<ModelConfig>({
-  model: 'gpt-3.5-turbo',
-  temperature: 0.7,
-  topP: 0.9,
-  maxContextTokens: 4096,
-  maxTokens: 1024,
-  systemPrompt: ''
-})
-
-const config = ref<ModelConfig>({ ...tempConfig.value })
-
-const cancelConfig = () => {
-  tempConfig.value = { ...config.value }
-  dialogVisible.value = false
-}
-
-const confirmConfig = () => {
-  config.value = { ...tempConfig.value }
-  emit('update', config.value)
-  dialogVisible.value = false
-}
-
-const availableModels = [
-  { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
-  { label: 'GPT-4', value: 'gpt-4' }
-]
 
 
 </script>

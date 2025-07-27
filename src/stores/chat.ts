@@ -1,84 +1,100 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-export interface Message {
-  id: string
-  content: string
-  isUser: boolean
-  timestamp: number
-}
-
-export interface Session {
-  id: string
-  name: string
-  messages: Message[]
-}
-
-export interface ModelConfig {
-  model: string
-  temperature: number
-  topP: number
-  maxTokens: number
-  knowledgeBase: string
-  mcpEnabled: boolean
-}
+import type { ModelConfig, Message, ModelRequest } from '@/types/chat'
+import { listModels, chatStream } from '@/api/chat'
+import { useConversationStore } from '@/stores/conversation'
 
 export const useChatStore = defineStore('chat', () => {
-  const sessions = ref<Session[]>([])
-  const currentSessionId = ref<string>('')
+  const models = ref<string[]>([])
+  const messages = ref<Message[]>([])
+  const conversationStore = useConversationStore()
+  const currentSessionId = computed(() => conversationStore.currentSessionId)
+  // 默认模型配置
   const modelConfig = ref<ModelConfig>({
-    model: 'gpt-3.5-turbo',
+    model: 'kimi-k2-0711-preview',
     temperature: 0.7,
     topP: 0.9,
-    maxTokens: 50,
-    knowledgeBase: '',
-    mcpEnabled: false
+    windowContextSize: 100,
+    maxTokens: 4096,
+    systemPrompt: '你是一个全能的助手，你的回答需要详细、准确、有逻辑、有深度。',
+    knowledgeId: 0,
+    tools: []
   })
 
-  const currentSession = computed(() => 
-    sessions.value.find(s => s.id === currentSessionId.value)
+  async function loadMessages() {
+    if (!currentSessionId.value) {
+      return
+    }
+    const res = await conversationStore.getSessionMessages(currentSessionId.value)
+    messages.value = res
+  }
+
+  const currentMessages = computed(() =>
+    messages.value.filter(m => m.conversationId === currentSessionId.value)
   )
 
-  function createSession(name: string = '新会话') {
-    const session: Session = {
-      id: Date.now().toString(),
-      name,
-      messages: []
-    }
-    sessions.value.push(session)
-    currentSessionId.value = session.id
-    return session
-  }
-
-  function deleteSession(sessionId: string) {
-    const index = sessions.value.findIndex(s => s.id === sessionId)
-    if (index > -1) {
-      sessions.value.splice(index, 1)
-      if (currentSessionId.value === sessionId) {
-        currentSessionId.value = sessions.value[0]?.id || ''
+  async function loadModels() {
+    try {
+      models.value = await listModels()
+      if (models.value.length > 0 && !modelConfig.value.model) {
+        modelConfig.value.model = models.value[0]
       }
+    } catch (error) {
+      console.error('Failed to load models:', error)
     }
   }
 
-  function renameSession(sessionId: string, newName: string) {
-    const session = sessions.value.find(s => s.id === sessionId)
-    if (session) {
-      session.name = newName
-    }
+
+  function addMessage(message: Message) {
+    messages.value.push(message)
   }
 
-  function addMessage(sessionId: string, message: Omit<Message, 'id' | 'timestamp'>) {
-    const session = sessions.value.find(s => s.id === sessionId)
-    if (session) {
-      const newMessage: Message = {
-        ...message,
-        id: Date.now().toString(),
-        timestamp: Date.now()
-      }
-      session.messages.push(newMessage)
-      return newMessage
+  async function chat(prompt: string) {
+    if (!currentSessionId.value) {
+      conversationStore.createSession()
     }
-    return null
+    const userMessage: Message = {
+      conversationId: currentSessionId.value,
+      content: prompt,
+      type: 'USER',
+      timestamp: new Date()
+    }
+    addMessage(userMessage)
+
+    const assistantMessage: Message = {
+      conversationId: currentSessionId.value,
+      content: '',
+      type: 'ASSISTANT',
+      timestamp: new Date()
+    }
+    addMessage(assistantMessage)
+
+    const modelRequest: ModelRequest = {
+      prompt,
+      ...modelConfig.value
+    }
+
+    try {
+      await chatStream(
+        currentSessionId.value,
+        modelRequest,
+        (data) => {
+          const lastMessage = messages.value[messages.value.length - 1]
+          if (lastMessage && lastMessage.type === 'ASSISTANT') {
+            lastMessage.content += data
+          }
+        },
+        (error) => {
+          console.error('SSE Error:', error)
+          const lastMessage = messages.value[messages.value.length - 1]
+          if (lastMessage && lastMessage.type === 'ASSISTANT') {
+            lastMessage.content = 'Error: ' + error.message
+          }
+        }
+      )
+    } catch (error) {
+      console.error('Chat stream failed:', error)
+    }
   }
 
   function updateModelConfig(config: Partial<ModelConfig>) {
@@ -86,14 +102,14 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   return {
-    sessions,
-    currentSessionId,
-    currentSession,
     modelConfig,
-    createSession,
-    deleteSession,
-    renameSession,
+    models,
+    messages,
+    currentMessages,
     addMessage,
-    updateModelConfig
+    chat,
+    loadModels,
+    updateModelConfig,
+    loadMessages
   }
 })

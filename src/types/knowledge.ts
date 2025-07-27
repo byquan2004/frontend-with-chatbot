@@ -13,7 +13,7 @@ export interface KnowledgeFile {
   size: number
   type: string
   uploadedAt: string
-  knowledgeBaseId: string
+  knowledgeId: string
 }
 
 export interface CreateKnowledgeBaseParams {

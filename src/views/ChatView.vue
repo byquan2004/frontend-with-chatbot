@@ -2,10 +2,6 @@
   <div class="chat-container">
     <div class="chat-sidebar" :class="{ 'is-visible': isSidebarVisible }">
       <ChatSessionList
-        @select="handleSessionSelect"
-        @create="handleSessionCreate"
-        @delete="handleSessionDelete"
-        @rename="handleSessionRename"
         @collapse="toggleSidebar"
       />
     </div>
@@ -21,7 +17,7 @@
           </el-button>
         </div>
 
-        <h2 class="session-title">{{ currentSession?.name || '新会话' }}</h2>
+        <h2 class="session-title">{{ currentSession?.title || '新会话' }}</h2>
 
         <div class="header-right">
           <el-dropdown @command="handleUserCommand">
@@ -47,11 +43,11 @@
           <div class="messages-wrapper">
             <ChatMessage
               v-for="message in messages"
-              :key="message.id"
+              :key="message.conversationId"
               :content="message.content"
-              :is-user="message.isUser"
+              :type="message.type"
               :timestamp="message.timestamp"
-              :avatar-url="message.isUser ? userAvatar : aiAvatar"
+              :avatar-url="message.type === 'USER' ? userAvatar : aiAvatar"
             />
           </div>
         </el-scrollbar>
@@ -76,24 +72,17 @@ import { useRouter } from 'vue-router'
 import ChatSessionList from '@/components/chat/ChatSessionList.vue'
 import ChatMessage from '@/components/chat/ChatMessage.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
-import ModelConfig from '@/components/chat/ModelConfig.vue'
+import { useChatStore } from '@/stores/chat'
+import { useConversationStore } from '@/stores/conversation'
+import { storeToRefs } from 'pinia'
 
-interface Message {
-  id: string
-  content: string
-  isUser: boolean
-  timestamp: number
-}
-
-interface Session {
-  id: string
-  name: string
-}
+const chatStore = useChatStore()
+const conversationStore = useConversationStore()
 
 const router = useRouter()
 const scrollbar = ref()
-const messages = ref<Message[]>([])
-const currentSession = ref<Session | null>(null)
+const messages = storeToRefs(chatStore).messages
+const currentSession = storeToRefs(conversationStore).currentSession
 const isSidebarVisible = ref(false)
 
 // 模拟用户头像和AI头像
@@ -104,57 +93,24 @@ const toggleSidebar = () => {
   isSidebarVisible.value = !isSidebarVisible.value
 }
 
-const handleSendMessage = async (content: string) => {
-  // 添加用户消息
-  const userMessage: Message = {
-    id: Date.now().toString(),
-    content,
-    isUser: true,
-    timestamp: Date.now()
-  }
-  messages.value.push(userMessage)
+watch(messages, async () => {
   await scrollToBottom()
+}, { deep: true })
 
-  // TODO: 调用API获取AI响应
-  setTimeout(() => {
-    const aiMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      content: '这是一个模拟的AI响应消息...',
-      isUser: false,
-      timestamp: Date.now()
-    }
-    messages.value.push(aiMessage)
-    scrollToBottom()
-  }, 1000)
+const handleSendMessage = async (content: string) => {
+  await chatStore.chat(content)
 }
 
 const scrollToBottom = async () => {
   await nextTick()
-  scrollbar.value?.setScrollTop(99999)
-}
-
-const handleSessionSelect = (sessionId: string) => {
-  // TODO: 加载会话历史记录
-  console.log('选择会话:', sessionId)
-}
-
-const handleSessionCreate = (session: Session) => {
-  currentSession.value = session
-  messages.value = []
-}
-
-const handleSessionDelete = (sessionId: string) => {
-  if (currentSession.value?.id === sessionId) {
-    currentSession.value = null
-    messages.value = []
+  if (scrollbar.value) {
+    const wrap = scrollbar.value.wrapRef
+    if (wrap) {
+      wrap.scrollTop = wrap.scrollHeight
+    }
   }
 }
 
-const handleSessionRename = (session: Session) => {
-  if (currentSession.value?.id === session.id) {
-    currentSession.value = session
-  }
-}
 
 const handleModelConfigUpdate = (config: any) => {
   console.log('模型配置更新:', config)
@@ -180,7 +136,9 @@ const handleMcpToolsChange = (tools: string[]) => {
   // TODO: 处理MCP工具变更
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await conversationStore.loadSessions()
+  await chatStore.loadMessages()
   // TODO: 加载初始数据
   const handleResize = () => {
     if (window.innerWidth > 768) {

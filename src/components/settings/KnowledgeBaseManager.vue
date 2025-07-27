@@ -97,7 +97,7 @@
         multiple
         action="/api/knowledge/upload"
         :headers="uploadHeaders"
-        :data="{ knowledgeBaseId: currentKnowledgeBaseId }"
+        :data="{ knowledgeId: currentKnowledgeBaseId }"
         :on-success="handleUploadSuccess"
         :on-error="handleUploadError"
       >

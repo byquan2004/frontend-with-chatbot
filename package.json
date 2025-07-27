@@ -14,9 +14,12 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@vueuse/core": "^13.5.0",
     "axios": "^1.11.0",
     "element-plus": "^2.10.4",
+    "marked": "^16.1.1",
+    "marked-highlight": "^2.2.2",
     "naive-ui": "^2.42.0",
     "pinia": "^3.0.3",
     "uuid": "^11.1.0",
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.2",
+    "@types/marked": "^6.0.0",
     "@types/node": "^22.15.32",
     "@vitejs/plugin-vue": "^4.5.0",
     "@vue/eslint-config-prettier": "^10.0.0",

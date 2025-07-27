@@ -1,11 +1,11 @@
 <template>
-  <div class="message" :class="{ 'message-user': isUser }">
+  <div class="message" :class="{ 'message-user': type === 'USER' }">
     <div class="message-avatar">
       <el-avatar :size="40" :src="avatarUrl" />
     </div>
     <div class="message-content">
       <div class="message-info">
-        <span class="message-name">{{ isUser ? '你' : 'AI助手' }}</span>
+        <span class="message-name">{{ type === 'USER' ? '你' : '助手' }}</span>
         <span class="message-time">{{ formatTime(timestamp) }}</span>
       </div>
       <div class="message-text" v-html="formatMessage(content)" />
@@ -14,12 +14,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { marked } from 'marked'
 
 interface Props {
   content: string
-  isUser: boolean
-  timestamp: number
+  type: 'USER' | 'ASSISTANT'
+  timestamp: Date
   avatarUrl?: string
 }
 
@@ -27,17 +27,15 @@ const props = withDefaults(defineProps<Props>(), {
   avatarUrl: ''
 })
 
-const formatTime = (timestamp: number) => {
-  const date = new Date(timestamp)
-  return date.toLocaleTimeString('zh-CN', {
+const formatTime = (timestamp: Date) => {
+  return new Date(timestamp).toLocaleTimeString('zh-CN', {
     hour: '2-digit',
     minute: '2-digit'
   })
 }
 
 const formatMessage = (message: string) => {
-  // TODO: 实现markdown渲染和代码高亮
-  return message.replace(/\n/g, '<br>')
+  return marked(message)
 }
 </script>
 
@@ -75,7 +73,6 @@ const formatMessage = (message: string) => {
   background: var(--el-bg-color-page);
   border-radius: 8px;
   line-height: 1.5;
-  white-space: pre-wrap;
   word-break: break-word;
 }
 

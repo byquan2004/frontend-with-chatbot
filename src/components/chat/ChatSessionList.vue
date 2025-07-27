@@ -20,11 +20,11 @@
           v-for="session in sessions"
           :key="session.id"
           class="session-item"
-          :class="{ 'is-active': session.id === activeSessionId }"
+          :class="{ 'is-active': session.id === currentSession }"
           @click.self="selectSession(session.id)"
         >
           <el-icon><ChatRound /></el-icon>
-          <span class="session-name" @click="selectSession(session.id)">{{ session.name }}</span>
+          <span class="session-name" @click="selectSession(session.id)">{{ session.title }}</span>
           <el-dropdown trigger="click" @command="handleSessionCommand">
             <el-button class="session-more" link>
               <el-icon><More /></el-icon>
@@ -51,37 +51,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Plus, ChatRound, More, Fold } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
-import { v4 as uuidv4 } from 'uuid';
-interface Session {
-  id: string
-  name: string
-}
+import { useConversationStore } from '@/stores/conversation'
+import { useChatStore } from '@/stores/chat'
+import { storeToRefs } from 'pinia'
 
-const emit = defineEmits(['select', 'create', 'delete', 'rename', 'collapse'])
+const conversationStore = useConversationStore()
+const chatStore = useChatStore()
+
+const emit = defineEmits(['collapse'])
 
 const isEditing = ref(false)
-const sessions = ref<Session[]>([
-  { id: '1', name: '默认会话' }
-])
-
-const activeSessionId = ref('1')
+const sessions = storeToRefs(conversationStore).sessions
+const currentSession = storeToRefs(conversationStore).currentSessionId
 
 const createNewSession = () => {
-  const newSession = {
-    id: uuidv4(),
-    name: `新会话 ${sessions.value.length + 1}`
-  }
-  sessions.value.push(newSession)
-  emit('create', newSession)
-  selectSession(newSession.id)
+  conversationStore.createSession()
+  selectSession(currentSession.value)
 }
 
-const selectSession = (sessionId: string) => {
-  activeSessionId.value = sessionId
-  emit('select', sessionId)
+const selectSession = async (sessionId: string) => {
+  currentSession.value = sessionId
+  await chatStore.loadMessages()
 }
 
 const handleSessionCommand = async ([action, sessionId]: [string, string]) => {
@@ -93,29 +86,26 @@ const handleSessionCommand = async ([action, sessionId]: [string, string]) => {
         closeOnClickModal: false,
         closeOnPressEscape: false
       })
-      sessions.value = sessions.value.filter(s => s.id !== sessionId)
-      emit('delete', sessionId)
-      if (activeSessionId.value === sessionId) {
+      conversationStore.deleteSession(sessionId)
+      if (currentSession.value === sessionId) {
         selectSession(sessions.value[0]?.id || '')
       }
     } else if (action === 'rename') {
-      const session = sessions.value.find(s => s.id === sessionId)
-      if (!session) return
-      
+      const tempSession = conversationStore.sessions.find(s => s.id === sessionId)
       const { value: newName } = await ElMessageBox.prompt('请输入新的会话名称', '重命名', {
-        inputValue: session.name,
+        inputValue: tempSession?.title,
         closeOnClickModal: false,
         closeOnPressEscape: false
       })
       
       if (newName?.trim()) {
-        session.name = newName.trim()
-        emit('rename', { id: sessionId, name: newName.trim() })
+        conversationStore.renameSession(sessionId, newName)
       }
     }
   } catch {}
   isEditing.value = false
 }
+
 </script>
 
 <style scoped>
