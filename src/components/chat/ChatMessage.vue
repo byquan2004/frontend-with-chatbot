@@ -8,12 +8,13 @@
         <span class="message-name">{{ type === 'USER' ? '你' : '助手' }}</span>
         <span class="message-time">{{ formatTime(timestamp) }}</span>
       </div>
-      <MarkdownRender :content="content" />
+      <MarkdownRender :content="content" :options="markdownOptions" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import MarkdownRender from '@/components/chat/MarkdownRender.vue'
 interface Props {
   content: string
@@ -32,6 +33,13 @@ const formatTime = (timestamp: Date) => {
     minute: '2-digit'
   })
 }
+
+const markdownOptions = ref({  
+  mathEngine: 'KaTeX' as const,  
+  enableGfm: true,  
+  enableCjkFriendly: true,  
+  shikiTheme: 'one-light'  
+})  
 
 </script>
 
