@@ -16,6 +16,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import MarkdownRender from '@/components/chat/MarkdownRender.vue'
+import { bundledThemes } from 'shiki'
+
 interface Props {
   content: string
   type: 'USER' | 'ASSISTANT'
@@ -38,7 +40,7 @@ const markdownOptions = ref({
   mathEngine: 'KaTeX' as const,  
   enableGfm: true,  
   enableCjkFriendly: true,  
-  shikiTheme: 'one-light'  
+  shikiTheme: bundledThemes['gruvbox-dark-medium'].toString()
 })  
 
 </script>

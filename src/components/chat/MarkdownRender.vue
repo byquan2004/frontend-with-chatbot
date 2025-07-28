@@ -47,7 +47,7 @@ const updateContent = async () => {
   }  
 }  
   
-watch(() => props.content, updateContent, { immediate: true })  
+watch(() => props.content, updateContent, { immediate: true, deep: true })  
   
 onMounted(() => {  
   updateContent()  

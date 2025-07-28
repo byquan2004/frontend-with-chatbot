@@ -24,7 +24,7 @@ export function useMarkdown(options: MarkdownOptions = {}) {
     mathEngine = 'KaTeX',  
     enableGfm = true,  
     enableCjkFriendly = true,  
-    shikiTheme = 'one-light'  
+    shikiTheme = 'github-dark'
   } = options  
   
   const isLoading = ref(false)  
